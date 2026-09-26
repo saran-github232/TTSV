@@ -1,0 +1,22 @@
+# Local Claude Code settings
+.claude/settings.local.json
+
+# OS / editor cruft
+.DS_Store
+Thumbs.db
+*.swp
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# Editors
+.vscode/
+.idea/
+
+# Misc
+*.log
+nim_models.json
