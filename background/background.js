@@ -231,6 +231,13 @@ Return ONLY a JSON object (no markdown fences, no commentary) with EXACTLY the f
 
 // Listen for messages from content script or popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === "CLIP_DETECTED") {
+    // Clip forwarding for the dashboard workspace (best-effort, synchronous).
+    chrome.storage.local.set({ "ttsc.currentClip": { ...(request.payload || {}), ts: Date.now() } });
+    sendResponse({ ok: true });
+    return;
+  }
+
   if (request.action === "ANALYZE_AUDIO") {
     handleAudioAnalysis(request.payload)
       .then(res => sendResponse({ success: true, data: res }))

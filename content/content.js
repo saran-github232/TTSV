@@ -1249,6 +1249,12 @@
         lastClipIdentifier = currentId;
         console.log("[TTS AI Reviewer] New clip detected:", currentId);
 
+        // Forward the clip to the dashboard workspace (best-effort — the
+        // dashboard shows a "Load it" banner when a new portal clip lands).
+        try {
+          chrome.runtime.sendMessage({ action: "CLIP_DETECTED", payload: { clipId: meta.clipId, audioSrc: meta.audioSrc, transcript: getOriginalTranscript() } }, () => void chrome.runtime.lastError);
+        } catch (_) {}
+
         // Check if auto-run on next is enabled
         const autoRunPref = document.getElementById("tts-ai-pref-autorun")?.checked;
         if (autoRunPref) {

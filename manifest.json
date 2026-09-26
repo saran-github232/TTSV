@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TTS Review AI Auto-Validator & Emotion Tagger",
-  "version": "1.3.1",
+  "version": "2.0.0",
   "description": "Automated verbatim validation, event tag insertion, and 19-emotion style wrapping for TTS Audio Reviews on tts-review.sabi.com.",
   "permissions": [
     "storage",

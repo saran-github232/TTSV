@@ -124,6 +124,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (el) el.addEventListener("input", showKeyHint);
   });
 
+  // ---- Open the standalone dashboard workspace ----
+  const btnDash = document.getElementById("btn-open-dashboard");
+  if (btnDash) btnDash.addEventListener("click", () => chrome.tabs.create({ url: chrome.runtime.getURL("dashboard/index.html") }));
+
   // ---- Test Connection ----
   btnTestKey.addEventListener("click", () => {
     const { apiKey, model, customBaseUrl } = getActiveProviderConfig();
