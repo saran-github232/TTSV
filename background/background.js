@@ -253,19 +253,26 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// Send a shortcut command to the active tab, tolerating tabs where the
+// Copilot panel isn't injected (unsupported pages, or stale tabs from before
+// an extension reload). Without a callback the failed sendMessage rejects as
+// "Uncaught (in promise): Could not establish connection" — reading
+// chrome.runtime.lastError marks it handled.
+function sendCommandToActiveTab(action) {
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    const tabId = tabs[0]?.id;
+    if (!tabId) return;
+    chrome.tabs.sendMessage(tabId, { action }, () => {
+      void chrome.runtime.lastError;
+    });
+  });
+}
+
 // Handle keyboard shortcuts
 chrome.commands.onCommand.addListener((command) => {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs[0]?.id) {
-      if (command === "auto_review") {
-        chrome.tabs.sendMessage(tabs[0].id, { action: "TRIGGER_AUTO_REVIEW" });
-      } else if (command === "toggle_playback") {
-        chrome.tabs.sendMessage(tabs[0].id, { action: "TOGGLE_PLAYBACK" });
-      } else if (command === "toggle_stealth") {
-        chrome.tabs.sendMessage(tabs[0].id, { action: "TOGGLE_STEALTH" });
-      }
-    }
-  });
+  if (command === "auto_review") sendCommandToActiveTab("TRIGGER_AUTO_REVIEW");
+  else if (command === "toggle_playback") sendCommandToActiveTab("TOGGLE_PLAYBACK");
+  else if (command === "toggle_stealth") sendCommandToActiveTab("TOGGLE_STEALTH");
 });
 
 // Main router for analyzing audio + transcript across providers

@@ -290,6 +290,7 @@ The floating panel must appear on **every** `tts-review.sabi.com` page — inclu
 | `NVIDIA: model unavailable (end-of-life or not found)` | Chosen model was retired (e.g. `meta/llama-3.3-70b-instruct` died 2026-08-26) | Pick another model in the NVIDIA dropdown |
 | `⚠️ No audio element or transcript found on page.` | Ran the review before the clip loaded | Wait for the clip + transcript, then run again |
 | Panel doesn't appear on the site | Stale tab (extension installed/reloaded *after* the page loaded), **Stealth Mode** (`Alt + H` — it stays hidden across page loads!), or the site's framework wiped the panel | Run **Test B in section 9**: open the popup → the **Panel Status (current tab)** card tells you exactly which case it is. Fix = refresh the page (F5), press `Alt + H`, or click **🩹 Show panel / fix injection**. Since v1.2.0 the panel also re-attaches itself automatically if the site removes it |
+| `Could not establish connection. Receiving end does not exist.` on the errors page | A shortcut (`Alt + A`/`Alt + P`/`Alt + H`) was pressed on a tab where the panel isn't injected — harmless, and silenced since v1.2.1 | Refresh the page (F5) so the panel connects; check the popup's Panel Status card |
 | Simulator shows but no panel | Page opened as `file://` | Serve it: `python -m http.server 8080` → `http://localhost:8080/` |
 | Emotion label looks different (`anger` vs `angry`) | v1.2.0 uses the Training Guide's exact spellings | Nothing to do — old labels are auto-mapped on save/output |
 
@@ -306,6 +307,9 @@ Legacy labels `angry`, `mischievously`, `whispers` are accepted anywhere (input,
 ---
 
 ## 12. Changelog
+
+### 1.2.1
+- Fixed the benign `Uncaught (in promise) Error: Could not establish connection. Receiving end does not exist.` that appeared on the extension's errors page when a shortcut (`Alt + A` / `Alt + P` / `Alt + H`) was pressed on a tab where the panel isn't injected (unsupported page or stale tab). The shortcut now fails silently there — refresh the page to connect the panel.
 
 ### 1.2.0
 - **Self-healing panel**: if the portal's framework wipes `<body>` after load, the Copilot panel re-attaches itself automatically (MutationObserver guard).

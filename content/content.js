@@ -210,6 +210,7 @@
           }
         },
         (response) => {
+          void chrome.runtime.lastError; // extension reloading mid-request → response is undefined; handled below
           isProcessing = false;
           updateRunButtonState(false);
 
