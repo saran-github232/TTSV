@@ -338,9 +338,9 @@
       <div class="tts-ai-header" id="tts-ai-header-drag">
         <div class="tts-ai-logo-group">
           <div class="tts-ai-badge-icon">🎙️</div>
-          <div class="tts-ai-title">
-            TTS Review Copilot
-            <span class="tts-ai-version">AI Pro</span>
+          <div class="tts-ai-title-group">
+            <div class="tts-ai-title">TTS Review Copilot<span class="tts-ai-version">PRO</span></div>
+            <div class="tts-ai-subtitle">Audio validator · emotion tagger</div>
           </div>
         </div>
         <div class="tts-ai-controls">
@@ -1248,12 +1248,6 @@
       if (lastClipIdentifier && currentId !== lastClipIdentifier) {
         lastClipIdentifier = currentId;
         console.log("[TTS AI Reviewer] New clip detected:", currentId);
-
-        // Forward the clip to the dashboard workspace (best-effort — the
-        // dashboard shows a "Load it" banner when a new portal clip lands).
-        try {
-          chrome.runtime.sendMessage({ action: "CLIP_DETECTED", payload: { clipId: meta.clipId, audioSrc: meta.audioSrc, transcript: getOriginalTranscript() } }, () => void chrome.runtime.lastError);
-        } catch (_) {}
 
         // Check if auto-run on next is enabled
         const autoRunPref = document.getElementById("tts-ai-pref-autorun")?.checked;
