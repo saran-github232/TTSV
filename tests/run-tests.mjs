@@ -10,6 +10,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const src = readFileSync(path.join(root, "background", "background.js"), "utf8");
 
 const noopListener = { addListener() {} };
+let store = {};
 const sandbox = {
   console,
   setTimeout,
@@ -20,17 +21,29 @@ const sandbox = {
   chrome: {
     runtime: { onMessage: noopListener },
     commands: { onCommand: noopListener },
-    storage: { sync: { get: async () => ({}), set: async () => {} } },
+    storage: {
+      sync: {
+        get: async (keys) => {
+          const out = {};
+          for (const k of [].concat(keys)) if (k in store) out[k] = store[k];
+          return out;
+        },
+        set: async (o) => { Object.assign(store, o); }
+      }
+    },
     tabs: { query: (_q, cb) => cb([]), sendMessage() {} }
   }
 };
 vm.createContext(sandbox);
 vm.runInContext(
-  src + "\n;globalThis.__bg = { runOfflineHeuristic, parseAIOutput, parseUnstructuredOutput, resolveGeminiModel, describeGeminiError, normalizeEmotion, DEFAULT_NVIDIA_MODEL };",
+  src + "\n;globalThis.__bg = { runOfflineHeuristic, parseAIOutput, parseUnstructuredOutput, resolveGeminiModel, describeGeminiError, normalizeEmotion, handleAudioAnalysis, DEFAULT_NVIDIA_MODEL };",
   sandbox,
   { filename: "background.js" }
 );
 const bg = sandbox.__bg;
+// Store setter lives in the module scope so the chrome.storage stub above
+// (which closes over `store`) sees the same object the tests write to.
+sandbox.__setStore = (o) => { Object.assign(store, o); };
 
 let passed = 0, failed = 0;
 function check(name, cond, extra = "") {
@@ -113,6 +126,14 @@ check("503 → overload guidance", e2.includes("overloaded"));
 
 console.log("NVIDIA config sanity:");
 check("default NVIDIA model is from live catalog", bg.DEFAULT_NVIDIA_MODEL === "nvidia/nemotron-3-super-120b-a12b", bg.DEFAULT_NVIDIA_MODEL);
+
+console.log("Provider routing:");
+sandbox.__setStore({ offlineMode: true, activeProvider: "gemini", geminiApiKey: "AQ.fakekey" });
+const routedOff = await bg.handleAudioAnalysis({ originalTranscript: "for a ten dollar pass verizon" });
+check("offlineMode forces heuristic even with a key configured", routedOff.source === "heuristic", routedOff.source);
+sandbox.__setStore({ offlineMode: false, activeProvider: "nvidia", geminiApiKey: "" });
+const routedNoKey = await bg.handleAudioAnalysis({ originalTranscript: "hello world" });
+check("missing provider key falls back to heuristic", routedNoKey.source === "heuristic", routedNoKey.source);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 process.exit(failed ? 1 : 0);

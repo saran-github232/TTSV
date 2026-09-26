@@ -38,4 +38,6 @@ def create_sample_wav(filename):
     print(f"Generated sample wav: {filename}")
 
 if __name__ == '__main__':
-    create_sample_wav(r"c:\Users\Vineela\Downloads\TTS\test-portal\sample.wav")
+    # Write next to this script (repo/test-portal) so it works from any checkout.
+    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "test-portal", "sample.wav")
+    create_sample_wav(out_path)

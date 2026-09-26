@@ -56,7 +56,8 @@ def create_icon(size, filename):
     print(f"Generated {filename}")
 
 if __name__ == '__main__':
-    base_dir = r"c:\Users\Vineela\Downloads\TTS\icons"
+    # Write next to this script (repo/icons) so it works from any checkout.
+    base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons")
     os.makedirs(base_dir, exist_ok=True)
     create_icon(16, os.path.join(base_dir, "icon16.png"))
     create_icon(48, os.path.join(base_dir, "icon48.png"))

@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "openrouterApiKey", "openrouterModel",
     "nvidiaApiKey", "nvidiaModel",
     "customBaseUrl", "customApiKey", "customModel",
-    "styleSpanPref", "autoRunOnNext", "autoPlayAudio"
+    "styleSpanPref", "autoRunOnNext", "autoPlayAudio", "offlineMode"
   ], (data) => {
     // Set active provider
     activeProvider = data.activeProvider || "gemini";
@@ -89,6 +89,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (data.styleSpanPref !== undefined) document.getElementById("pref-style-span").checked = data.styleSpanPref;
     if (data.autoRunOnNext !== undefined) document.getElementById("pref-autorun").checked = data.autoRunOnNext;
     if (data.autoPlayAudio !== undefined) document.getElementById("pref-autoplay").checked = data.autoPlayAudio;
+    if (data.offlineMode !== undefined) document.getElementById("pref-offline").checked = data.offlineMode;
 
     updateStatusPill(activeProvider, data);
     showKeyHint();
@@ -182,7 +183,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
       styleSpanPref: document.getElementById("pref-style-span").checked,
       autoRunOnNext: document.getElementById("pref-autorun").checked,
-      autoPlayAudio: document.getElementById("pref-autoplay").checked
+      autoPlayAudio: document.getElementById("pref-autoplay").checked,
+      offlineMode: document.getElementById("pref-offline").checked
     };
 
     chrome.storage.sync.set(config, () => {
@@ -293,6 +295,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function updateStatusPill(provider, data) {
+    // Forced offline mode always shows as heuristics, regardless of keys.
+    if (data.offlineMode) {
+      statusPill.textContent = "Heuristics (offline)";
+      statusPill.className = "status-pill offline";
+      return;
+    }
+
     const providerNames = {
       gemini: "Gemini AI",
       nvidia: "NVIDIA NIM",
