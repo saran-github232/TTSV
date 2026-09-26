@@ -485,8 +485,37 @@ html[data-tts-stealth="1"] .tts-ai-modal-overlay {
   display: none !important;
 }
 
-/* --- v1.1.0: Rule Check, sample links, playback speed, stats --- */
-.tts-ai-rulecheck {
+/* --- v1.3.0: Inline quick-bar above the Corrected Transcript textarea --- */
+#tts-ai-inline-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 10px 0;
+  position: relative;
+  z-index: 2147483000;
+  width: fit-content;
+}
+
+#tts-ai-inline-bar .tts-ai-inline-kbd {
+  font-size: 10px;
+  opacity: 0.85;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+#tts-ai-inline-bar .tts-ai-btn-primary {
+  padding: 7px 14px;
+  font-size: 12.5px;
+}
+
+#tts-ai-inline-bar .tts-ai-btn-secondary {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+/* --- v1.1.0: Rule Check, sample links, playback speed, stats --- */.tts-ai-rulecheck {
   background: rgba(30, 41, 59, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;

@@ -1,4 +1,4 @@
-# TTS Review AI Auto-Validator & Emotion Tagger (Chrome Extension) — v1.2.0
+# TTS Review AI Auto-Validator & Emotion Tagger (Chrome Extension) — v1.3.0
 
 A Google Chrome Extension for **https://tts-review.sabi.com/** that listens to each audio clip with AI, cleans the transcript to the official Training Guide rules, inserts non-speech event tags, and wraps the text in the correct one of the **19 emotion spans** — then lets you verify everything with one click before submitting.
 
@@ -11,7 +11,7 @@ This README is a **complete step-by-step guide**: every step tells you exactly w
 | Step | What happens |
 | :--- | :--- |
 | 1 | You open a clip on the review portal. A floating **TTS Review Copilot** panel appears. |
-| 2 | You click **✨ AI Auto-Review & Tag** (or press `Alt + A`). |
+| 2 | You click **✨ AI Auto-Validate** — the button injected right above the Corrected Transcript box — or **✨ AI Auto-Review & Tag** in the panel (or just press `Alt + A`). |
 | 3 | The extension fetches the clip's audio and sends it to your chosen AI provider with the full Training Guide rulebook. |
 | 4 | The **Corrected Transcript** box is filled with the cleaned, tagged, emotion-wrapped text. |
 | 5 | You check the result (**✅ Rule Check**, confidence, insights), adjust if needed, and submit on the portal. |
@@ -35,7 +35,7 @@ No provider configured? The extension still works in **Offline Heuristic Mode** 
 
 ```
 TTS-main/
-├── manifest.json            ← Chrome extension manifest (v1.2.0)
+├── manifest.json            ← Chrome extension manifest (v1.3.0)
 ├── background/background.js ← AI engine: providers, prompts, offline rules
 ├── content/content.js       ← In-page Copilot panel + portal automation
 ├── content/content.css      ← Panel styling (incl. stealth mode)
@@ -63,7 +63,7 @@ TTS-main/
    ```text
    C:\AndroidPro\TTS-main
    ```
-6. The card **"TTS Review AI Auto-Validator & Emotion Tagger" 1.2.0** appears with no errors.
+6. The card **"TTS Review AI Auto-Validator & Emotion Tagger" 1.3.0** appears with no errors.
 7. Click the puzzle-piece icon in Chrome's toolbar and **pin** 🎙️ *TTS Review AI Assistant*.
 
 > **After any code change:** come back to `chrome://extensions` and click the **↻ Reload** icon on the extension card, then refresh the portal tab.
@@ -141,7 +141,7 @@ You can switch providers anytime — the last saved tab wins.
    ```text
    Ready to validate current clip.
    ```
-3. Click **✨ AI Auto-Review & Tag** (or press **`Alt + A`**). Status changes to:
+3. Click **✨ AI Auto-Validate** directly above the Corrected Transcript box, or **✨ AI Auto-Review & Tag** in the Copilot panel (or press **`Alt + A`**). Status changes to:
    ```text
    Fetching audio & analyzing voice with AI...
    ```
@@ -186,6 +186,7 @@ You can switch providers anytime — the last saved tab wins.
 
 | Control | What it does | Output you'll see |
 | :--- | :--- | :--- |
+| ✨ **AI Auto-Validate** (inline bar) | The button injected directly above the Corrected Transcript box (plus ▶/⏸) — same review as the panel button, re-attached automatically if the site moves/removes it | Button shows `⏳ Analyzing Audio...` while working |
 | ✨ **AI Auto-Review & Tag** | Full AI validation of the current clip | Fills the transcript box; green status names the provider + emotion |
 | ▶ / ⏸ | Play or pause the clip | — |
 | ⬇ **Load Original** | Copy the system transcript into the Corrected box verbatim | `Loaded the Original Transcript into the box.` |
@@ -255,7 +256,7 @@ The floating panel must appear on **every** `tts-review.sabi.com` page — inclu
    python -m http.server 8080
    ```
 2. Open **http://localhost:8080/** in Chrome. You'll see the dark **TTS Review** simulator with a sample clip (`Clip: ZyG8FSeTFKA_speaker_0_1340`) and the original transcript *"for a ten dollar pass verizon will pick this up here"*.
-3. Confirm the Copilot panel is visible (popup Panel Status should also say ✓). Click **✨ AI Auto-Review & Tag**.
+3. Confirm the Copilot panel is visible (popup Panel Status should also say ✓). Click **✨ AI Auto-Validate** above the Corrected Transcript box (or **✨ AI Auto-Review & Tag** in the panel).
 4. **Expected:** the Corrected Transcript fills with:
    ```text
    <|style_open|>thoughtful<|style_body|>For a 10 dollar pass, Verizon will pick this up here.<|style_close|>
@@ -307,6 +308,9 @@ Legacy labels `angry`, `mischievously`, `whispers` are accepted anywhere (input,
 ---
 
 ## 12. Changelog
+
+### 1.3.0
+- **Inline quick-bar implemented**: the ✨ AI Auto-Validate button (plus ▶/⏸) is now genuinely injected directly above the Corrected Transcript textarea — earlier versions only advertised it. It re-attaches itself automatically if the portal's SPA mounts the textarea late, moves it, or removes the bar, shows `⏳ Analyzing Audio...` while a review runs, and is hidden by Stealth Mode like all other extension UI.
 
 ### 1.2.1
 - Fixed the benign `Uncaught (in promise) Error: Could not establish connection. Receiving end does not exist.` that appeared on the extension's errors page when a shortcut (`Alt + A` / `Alt + P` / `Alt + H`) was pressed on a tab where the panel isn't injected (unsupported page or stale tab). The shortcut now fails silently there — refresh the page to connect the panel.

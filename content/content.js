@@ -40,6 +40,8 @@
   function init() {
     applyStealth(isStealthOn()); // restore hidden state before any UI is drawn
     setupInPageWidget();
+    ensureInlineBar();
+    setupInlineBarObserver();
     observeClipChanges();
     listenToBackgroundMessages();
   }
@@ -501,15 +503,7 @@
     // Wire Buttons
     panel.querySelector("#tts-ai-run-btn").addEventListener("click", runAutoReview);
 
-    panel.querySelector("#tts-ai-play-btn").addEventListener("click", () => {
-      const audio = getAudioElement();
-      if (!audio) return;
-      if (audio.paused) {
-        audio.play().catch(() => {});
-      } else {
-        audio.pause();
-      }
-    });
+    panel.querySelector("#tts-ai-play-btn").addEventListener("click", togglePlayback);
 
     panel.querySelector("#tts-ai-load-original-btn").addEventListener("click", loadOriginalIntoCorrected);
     panel.querySelector("#tts-ai-toggle-style-btn").addEventListener("click", toggleStyleWrap);
@@ -648,6 +642,51 @@
     });
   }
 
+  // --- Inline quick-bar: "✨ AI Auto-Validate" above the Corrected Transcript ---
+  // Injected next to whichever textarea getCorrectedTextarea() resolves, and
+  // re-attached automatically if the portal's SPA mounts it late or removes it.
+  const INLINE_BAR_ID = "tts-ai-inline-bar";
+
+  function togglePlayback() {
+    const audio = getAudioElement();
+    if (!audio) return;
+    if (audio.paused) {
+      audio.play().catch(() => {});
+    } else {
+      audio.pause();
+    }
+  }
+
+  function ensureInlineBar() {
+    if (document.getElementById(INLINE_BAR_ID)) return;
+    const textarea = getCorrectedTextarea();
+    if (!textarea) return;
+
+    const bar = document.createElement("div");
+    bar.id = INLINE_BAR_ID;
+    bar.innerHTML = `
+      <button type="button" class="tts-ai-btn-primary" id="tts-ai-inline-run">✨ AI Auto-Validate<span class="tts-ai-inline-kbd">Alt+A</span></button>
+      <button type="button" class="tts-ai-btn-secondary" id="tts-ai-inline-play" title="Play / Pause audio (Alt+P)">▶ / ⏸</button>
+    `;
+    bar.querySelector("#tts-ai-inline-run").addEventListener("click", runAutoReview);
+    bar.querySelector("#tts-ai-inline-play").addEventListener("click", togglePlayback);
+    textarea.insertAdjacentElement("beforebegin", bar);
+  }
+
+  function setupInlineBarObserver() {
+    // Throttled: the SPA may mount the textarea late, move it between renders,
+    // or drop the bar — re-check briefly after any DOM change.
+    let pending = null;
+    const observer = new MutationObserver(() => {
+      if (pending) return;
+      pending = setTimeout(() => {
+        pending = null;
+        ensureInlineBar();
+      }, 300);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
+
   // --- UI Helpers ---
   function showStatus(message, state = "normal") {
     const msgEl = document.getElementById("tts-ai-status-msg");
@@ -665,6 +704,16 @@
     const btn = document.getElementById("tts-ai-run-btn");
     const icon = document.getElementById("tts-ai-run-icon");
     const txt = document.getElementById("tts-ai-run-text");
+
+    // Keep the inline bar's button in sync too (it lives outside the panel).
+    const inlineRun = document.getElementById("tts-ai-inline-run");
+    if (inlineRun) {
+      inlineRun.disabled = loading;
+      inlineRun.innerHTML = loading
+        ? "⏳ Analyzing Audio..."
+        : '✨ AI Auto-Validate<span class="tts-ai-inline-kbd">Alt+A</span>';
+    }
+
     if (!btn) return;
 
     if (loading) {
