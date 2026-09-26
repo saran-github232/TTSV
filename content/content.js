@@ -460,6 +460,17 @@
 
     document.body.appendChild(panel);
 
+    // SPA self-healing: some frameworks rebuild <body> after load, which
+    // would orphan (remove) the panel. Watch for the panel being detached
+    // and re-attach it automatically.
+    const panelObserver = new MutationObserver(() => {
+      if (!panel.isConnected && document.body) {
+        document.body.appendChild(panel);
+        applyStealth(isStealthOn());
+      }
+    });
+    panelObserver.observe(document.body, { childList: true, subtree: false });
+
     // Populate Emotion Buttons
     const emotionsList = panel.querySelector("#tts-ai-emotions-list");
     EMOTIONS.forEach(emo => {
@@ -1217,6 +1228,25 @@
       } else if (request.action === "TOGGLE_STEALTH") {
         toggleStealth();
         sendResponse({ received: true });
+      } else if (request.action === "PANEL_PING") {
+        // Used by the popup's Panel Status card to diagnose the tab.
+        sendResponse({
+          alive: !!document.getElementById("tts-ai-copilot-panel"),
+          stealth: isStealthOn(),
+          url: location.href
+        });
+      } else if (request.action === "SHOW_PANEL") {
+        // One-click fix from the popup: force the panel visible.
+        applyStealth(false);
+        const panel = document.getElementById("tts-ai-copilot-panel");
+        if (panel) {
+          panel.classList.remove("minimized");
+          if (document.body && !panel.isConnected) document.body.appendChild(panel);
+        }
+        sendResponse({
+          alive: !!document.getElementById("tts-ai-copilot-panel"),
+          stealth: false
+        });
       }
     });
   }

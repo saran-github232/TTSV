@@ -1,4 +1,4 @@
-# TTS Review AI Auto-Validator & Emotion Tagger (Chrome Extension) — v1.1.0
+# TTS Review AI Auto-Validator & Emotion Tagger (Chrome Extension) — v1.2.0
 
 A Google Chrome Extension for **https://tts-review.sabi.com/** that listens to each audio clip with AI, cleans the transcript to the official Training Guide rules, inserts non-speech event tags, and wraps the text in the correct one of the **19 emotion spans** — then lets you verify everything with one click before submitting.
 
@@ -35,7 +35,7 @@ No provider configured? The extension still works in **Offline Heuristic Mode** 
 
 ```
 TTS-main/
-├── manifest.json            ← Chrome extension manifest (v1.1.0)
+├── manifest.json            ← Chrome extension manifest (v1.2.0)
 ├── background/background.js ← AI engine: providers, prompts, offline rules
 ├── content/content.js       ← In-page Copilot panel + portal automation
 ├── content/content.css      ← Panel styling (incl. stealth mode)
@@ -63,7 +63,7 @@ TTS-main/
    ```text
    C:\AndroidPro\TTS-main
    ```
-6. The card **"TTS Review AI Auto-Validator & Emotion Tagger" 1.1.0** appears with no errors.
+6. The card **"TTS Review AI Auto-Validator & Emotion Tagger" 1.2.0** appears with no errors.
 7. Click the puzzle-piece icon in Chrome's toolbar and **pin** 🎙️ *TTS Review AI Assistant*.
 
 > **After any code change:** come back to `chrome://extensions` and click the **↻ Reload** icon on the extension card, then refresh the portal tab.
@@ -137,7 +137,7 @@ You can switch providers anytime — the last saved tab wins.
 ## 6. Use it on the portal — step by step
 
 1. Go to **https://tts-review.sabi.com/**, log in, and open the **Review** tab.
-2. When a clip loads, the **TTS Review Copilot** panel appears (bottom-right by default — drag the header to move it; position is remembered). Its status line shows:
+2. When a clip loads, the **TTS Review Copilot** panel appears (bottom-right by default — drag the header to move it; position is remembered). It shows on **every** page of the portal, including the login screen. Its status line shows:
    ```text
    Ready to validate current clip.
    ```
@@ -212,22 +212,70 @@ You can switch providers anytime — the last saved tab wins.
 
 ---
 
-## 9. Try it offline first — the test simulator
+## 9. How to test — end to end (clear guide)
 
-The simulator copies the portal's layout so you can test without logging in.
+Run these five tests in order. Each one has the exact expected output.
+
+### Test A — Automated logic tests (no browser needed)
+
+1. In a terminal:
+   ```bash
+   cd C:\AndroidPro\TTS-main
+   node tests/run-tests.mjs
+   ```
+2. **Expected:** the last line is `33 passed, 0 failed` (green ✓ marks throughout).
+
+### Test B — Is the panel showing on the page? (the #1 check)
+
+The floating panel must appear on **every** `tts-review.sabi.com` page — including the login screen.
+
+1. Open **https://tts-review.sabi.com/** and **press F5** (refresh).
+   > Content scripts only inject when a page *loads*. If you installed or reloaded the extension while the tab was already open, the old tab knows nothing about it — refreshing always fixes that. This is the most common cause of "the panel is not showing".
+2. Look at the page: the **TTS Review Copilot** panel should be visible (bottom-right by default; drag its header anywhere; position is remembered).
+3. Open the extension popup (click 🎙️ in the toolbar) and read the **Panel Status (current tab)** card. It tells you exactly which situation you're in:
+   | Card says | Meaning | Fix |
+   | :--- | :--- | :--- |
+   | `✓ Copilot panel is active on this tab…` | Everything works | Nothing — go to Test C |
+   | `🙈 Stealth mode is ON — the panel is hidden…` | `Alt + H` was pressed earlier; stealth **stays on across page loads** | Press `Alt + H` on the page, or click **🩹 Show panel / fix injection** |
+   | `✗ Extension is not connected to this tab…` | Tab loaded before the extension (stale tab) | Refresh the page (F5), reopen the popup |
+   | `✗ Panel is missing on this tab (the site may have wiped it)…` | The site's framework removed the panel after load (rare — v1.2.0 auto-re-attaches it) | Click **🩹 Show panel / fix injection** |
+   | `○ Not a supported page…` | You're on some other website | Open tts-review.sabi.com or the localhost simulator |
+4. **Expected:** green `✓ Copilot panel is active on this tab.`
+
+### Test C — Provider connection
+
+1. Popup → 🟩 **NVIDIA** tab → **🔌 Test Connection**.
+2. **Expected:** `✓ Connected!` next to the button. Any ✗ message is explained in section 10.
+
+### Test D — Offline simulator (safe practice run)
 
 1. In a terminal:
    ```bash
    cd C:\AndroidPro\TTS-main\test-portal
    python -m http.server 8080
    ```
-2. Open **http://localhost:8080/** in Chrome. You'll see the dark **TTS Review** simulator with a sample clip (`Clip: ZyG8FSeTFKA_speaker_0_1340`), the original transcript *"for a ten dollar pass verizon will pick this up here"*, and Prev/Next sample buttons (3 clips).
-3. The Copilot panel appears — click **✨ AI Auto-Review & Tag**. The Corrected Transcript fills and the emotion/event buttons behave exactly like the real portal.
-4. Use **Next →** to move between the 3 sample clips (one per rule scenario: numbers, contractions, proper nouns).
+2. Open **http://localhost:8080/** in Chrome. You'll see the dark **TTS Review** simulator with a sample clip (`Clip: ZyG8FSeTFKA_speaker_0_1340`) and the original transcript *"for a ten dollar pass verizon will pick this up here"*.
+3. Confirm the Copilot panel is visible (popup Panel Status should also say ✓). Click **✨ AI Auto-Review & Tag**.
+4. **Expected:** the Corrected Transcript fills with:
+   ```text
+   <|style_open|>thoughtful<|style_body|>For a 10 dollar pass, Verizon will pick this up here.<|style_close|>
+   ```
+   (`thoughtful` is the offline default; with an AI key configured you get a real detected emotion.) The status line shows `✓ Validated by …` or `✓ Rule-based cleaned …`, and **Clips: 1** appears in the footer.
+5. Click **✅ Rule Check** → **Expected:** `✅ All Training Guide rules pass` (the AI output already complies).
+6. Click an emotion pill (e.g. `joyful`) → the span rewatches to `joyful`. Click **📋 Copy** → paste anywhere to verify.
+7. Press **`Alt + H`** → all extension UI vanishes. Press **`Alt + H`** again → it returns.
+8. Use **Next →** for the other 2 sample clips (contraction and proper-noun scenarios).
 
-> ⚠️ **Must be `http://localhost`** — Chrome does not inject content scripts into `file://` pages, so double-clicking `index.html` will show the simulator **without** the panel. If the panel is missing, check the address bar starts with `http://localhost`.
+> ⚠️ **Must be `http://localhost`** — Chrome does not inject content scripts into `file://` pages, so double-clicking `index.html` shows the simulator **without** the panel. Check the address bar starts with `http://localhost`.
 >
 > ℹ️ The bundled `sample.wav` is a synthesized tone, so AI emotion results on the simulator are illustrative only.
+
+### Test E — Live on the portal
+
+1. Log in at **https://tts-review.sabi.com/** and open the **Review** tab.
+2. Panel status line reads `Ready to validate current clip.`
+3. Click **✨ AI Auto-Review & Tag** (or `Alt + A`). Status → `Fetching audio & analyzing voice with AI…`, then on success the box fills and the status names your provider and emotion, e.g. `✓ Validated by NVIDIA NIM (nvidia/nemotron-3-super-120b-a12b) (anger)`.
+4. Run **✅ Rule Check**, adjust the emotion if needed, then submit with the portal's own **Accept as Corrected** / **Reject** button. The **Clips** counter increments on every successful AI review.
 
 ---
 
@@ -241,9 +289,9 @@ The simulator copies the portal's layout so you can test without logging in.
 | `Gemini is temporarily overloaded (503)` | Google-side congestion (auto-retried 3×) | Just retry in a moment |
 | `NVIDIA: model unavailable (end-of-life or not found)` | Chosen model was retired (e.g. `meta/llama-3.3-70b-instruct` died 2026-08-26) | Pick another model in the NVIDIA dropdown |
 | `⚠️ No audio element or transcript found on page.` | Ran the review before the clip loaded | Wait for the clip + transcript, then run again |
-| Panel doesn't appear | Extension reloaded but tab is stale | Refresh the portal tab; confirm the extension is enabled |
+| Panel doesn't appear on the site | Stale tab (extension installed/reloaded *after* the page loaded), **Stealth Mode** (`Alt + H` — it stays hidden across page loads!), or the site's framework wiped the panel | Run **Test B in section 9**: open the popup → the **Panel Status (current tab)** card tells you exactly which case it is. Fix = refresh the page (F5), press `Alt + H`, or click **🩹 Show panel / fix injection**. Since v1.2.0 the panel also re-attaches itself automatically if the site removes it |
 | Simulator shows but no panel | Page opened as `file://` | Serve it: `python -m http.server 8080` → `http://localhost:8080/` |
-| Emotion label looks different (`anger` vs `angry`) | v1.1.0 uses the Training Guide's exact spellings | Nothing to do — old labels are auto-mapped on save/output |
+| Emotion label looks different (`anger` vs `angry`) | v1.2.0 uses the Training Guide's exact spellings | Nothing to do — old labels are auto-mapped on save/output |
 
 ---
 
@@ -258,6 +306,12 @@ Legacy labels `angry`, `mischievously`, `whispers` are accepted anywhere (input,
 ---
 
 ## 12. Changelog
+
+### 1.2.0
+- **Self-healing panel**: if the portal's framework wipes `<body>` after load, the Copilot panel re-attaches itself automatically (MutationObserver guard).
+- **Panel Status card** in the popup: live per-tab diagnosis — `✓ panel active`, `🙈 Stealth mode is ON`, `✗ not connected (refresh the page)`, `○ not a supported page` — plus a one-click **🩹 Show panel / fix injection** button (`PANEL_PING` / `SHOW_PANEL` message actions).
+- **End-to-end testing guide** (section 9): five tests, each with exact expected outputs.
+- Panel now confirmed to appear on **every** portal page, login screen included.
 
 ### 1.1.0
 - **NVIDIA NIM provider** (`integrate.api.nvidia.com`) with curated live models; keys validated with a real completion; end-of-life model errors surfaced clearly.

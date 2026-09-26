@@ -153,6 +153,13 @@
         <p class="card-hint">Works with Ollama, LM Studio, vLLM, LocalAI, or any OpenAI-compatible endpoint.</p>
       </section>
 
+      <!-- Panel Status (diagnoses the current tab) -->
+      <section class="card" id="panel-status-card">
+        <div class="card-label" style="margin-bottom: 6px;">Panel Status (current tab)</div>
+        <div id="panel-status" style="font-size:12px; line-height:1.45; color:#94a3b8;">Checking…</div>
+        <button type="button" id="btn-show-panel" class="btn-secondary" style="margin-top: 8px; width: 100%;">🩹 Show panel / fix injection</button>
+      </section>
+
       <!-- Key Format Hint (catches e.g. an NVIDIA key pasted into the wrong tab) -->
       <div id="key-hint" style="display:none; border:1px solid #f59e0b; color:#fbbf24; font-size:12px; padding:8px 12px; border-radius:8px; margin-bottom:8px;"></div>
 

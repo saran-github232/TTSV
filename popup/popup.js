@@ -192,6 +192,67 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  // ---- Panel Status Diagnostics ----
+  // Tells you, for the tab you opened the popup on, whether the Copilot panel
+  // is actually injected — and offers a one-click fix when it isn't.
+  function isSupportedTab(url) {
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      if (u.hostname === "tts-review.sabi.com" || u.hostname.endsWith(".sabi.com")) return true;
+      return (u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.protocol.startsWith("http");
+    } catch (_) {
+      return false;
+    }
+  }
+
+  function setPanelStatus(text, color) {
+    const el = document.getElementById("panel-status");
+    if (el) {
+      el.textContent = text;
+      el.style.color = color;
+    }
+  }
+
+  function updatePanelStatus() {
+    const btn = document.getElementById("btn-show-panel");
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const tab = tabs[0];
+      if (!tab || !isSupportedTab(tab.url)) {
+        setPanelStatus("○ Not a supported page. Open tts-review.sabi.com (or the http://localhost simulator), then reopen this popup.", "#94a3b8");
+        if (btn) btn.disabled = true;
+        return;
+      }
+      if (btn) btn.disabled = false;
+      chrome.tabs.sendMessage(tab.id, { action: "PANEL_PING" }, (resp) => {
+        if (chrome.runtime.lastError || !resp) {
+          void chrome.runtime.lastError;
+          setPanelStatus("✗ Extension is not connected to this tab. This happens after installing/reloading the extension — just refresh the page (F5) and it will connect.", "#f87171");
+          return;
+        }
+        if (resp.stealth) {
+          setPanelStatus("🙈 Stealth mode is ON — the panel is hidden on purpose (it stays hidden across page loads). Press Alt+H on the page, or click the button below to show it again.", "#fbbf24");
+        } else if (resp.alive) {
+          setPanelStatus("✓ Copilot panel is active on this tab. Look for it on the page (bottom-right by default; drag the header to move it).", "#4ade80");
+        } else {
+          setPanelStatus("✗ Panel is missing on this tab (the site may have wiped it). Click the button below to re-inject it.", "#f87171");
+        }
+      });
+    });
+  }
+
+  const btnShowPanel = document.getElementById("btn-show-panel");
+  if (btnShowPanel) {
+    btnShowPanel.addEventListener("click", () => {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]?.id) return;
+        chrome.tabs.sendMessage(tabs[0].id, { action: "SHOW_PANEL" }, () => void chrome.runtime.lastError);
+        setTimeout(updatePanelStatus, 300);
+      });
+    });
+  }
+  updatePanelStatus();
+
   // ---- Helpers ----
   function getActiveProviderConfig() {
     switch (activeProvider) {
