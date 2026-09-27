@@ -1,4 +1,4 @@
-# TTS Review Copilot — v2.1.0
+# TTS Review Copilot — v2.1.1
 
 A professional Chrome (Manifest V3) extension for **https://tts-review.sabi.com/** that automates TTS audio-transcript review: it listens to each clip with AI, produces a verbatim, rule-compliant, emotion-tagged transcript, and hands you a compact, polished in-page workspace to verify and fine-tune everything before you submit.
 
@@ -22,7 +22,7 @@ A professional Chrome (Manifest V3) extension for **https://tts-review.sabi.com/
 1. Open `chrome://extensions` in Chrome (or Edge/Brave).
 2. Turn on **Developer mode** (top-right).
 3. Click **Load unpacked** and select the folder containing `manifest.json`.
-4. The card **"TTS Review AI Auto-Validator & Emotion Tagger" 2.1.0** loads with no errors — pin it to the toolbar.
+4. The card **"TTS Review AI Auto-Validator & Emotion Tagger" 2.1.1** loads with no errors — pin it to the toolbar.
 5. Open **https://tts-review.sabi.com/** → the **TTS Review Copilot** panel appears bottom-right (drag its header anywhere; the position is remembered), and the **✨ AI Auto-Validate** bar appears above the Corrected Transcript box.
 
 > After updating the code: `chrome://extensions` → **Reload** ↻ → refresh the portal tab.
@@ -83,6 +83,9 @@ Covers model remapping, emotion normalization, every heuristic rule, JSON/fence 
 Keys are stored in `chrome.storage.sync` on your profile and sent **only** to the provider you configure. Audio + transcripts go only to that provider. Permissions: `storage`, `activeTab`; hosts: the portal, `localhost`, and the AI APIs — no `<all_urls>`.
 
 ## 9. Changelog
+
+### 2.1.1
+- **Fixed**: Original Transcript extraction could grab the wrong page element (e.g. the clip title) when the "Original Transcript" heading sits inside a container — AI Auto-Review now always reads the actual transcript. Found by the end-to-end browser test; all 35 unit tests and 25 E2E checks pass.
 
 ### 2.1.0
 - **Panel redesign**: professional navy + indigo design system, larger-but-compact 384px panel, refined typography (Inter/Segoe UI Variable), gradient header with subtitle, polished buttons/pills/status animations, custom scrollbar, responsive down to small screens, reduced-motion support.

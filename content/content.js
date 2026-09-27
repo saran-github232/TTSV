@@ -73,21 +73,38 @@
   function getOriginalTranscript() {
     // Strategy 1: Find the "Original Transcript" heading/label, then read the
     // text that follows it (next sibling, or the text-bearing node just after).
-    const allEls = document.querySelectorAll("h1, h2, h3, h4, h5, h6, div, p, span, label, strong");
+    // Containers also start with the label text ("Original Transcript\n..."),
+    // so prefer an exact-text match and otherwise the innermost match — that is
+    // the actual heading, not a wrapper that would pull in unrelated siblings.
+    const LABEL_RE = /^original transcript\b/i;
+    const allEls = Array.from(document.querySelectorAll("h1, h2, h3, h4, h5, h6, div, p, span, label, strong"));
+    let labelEl = null;
     for (const el of allEls) {
-      if (/^original transcript\b/i.test(el.textContent.trim())) {
-        // Prefer a following sibling that carries text.
-        let node = el.nextElementSibling;
-        while (node && !node.textContent.trim()) node = node.nextElementSibling;
+      const t = el.textContent.trim();
+      if (!LABEL_RE.test(t)) continue;
+      if (/^original transcript$/i.test(t)) { labelEl = el; break; }
+      if (!labelEl || labelEl.contains(el)) labelEl = el;
+    }
+    if (labelEl) {
+      // Prefer a following sibling that carries text.
+      let node = labelEl.nextElementSibling;
+      while (node && !node.textContent.trim()) node = node.nextElementSibling;
 
-        // Otherwise look just below within the shared container.
-        if (!node && el.parentElement) {
-          node = el.parentElement.querySelector("textarea, [contenteditable], p, div, span");
-        }
-        if (node) {
-          const txt = (node.tagName === "TEXTAREA" ? node.value : node.textContent).trim();
-          // Guard against grabbing the heading itself.
-          if (txt && !/^original transcript$/i.test(txt)) return txt;
+      if (node) {
+        const txt = (node.tagName === "TEXTAREA" ? node.value : node.textContent).trim();
+        // Guard against grabbing the heading itself.
+        if (txt && !/^original transcript$/i.test(txt)) return txt;
+      }
+
+      // Otherwise take the first text-bearing element AFTER the label in
+      // document order within the shared parent — never the label's ancestors
+      // or elements that precede it (they belong to other page regions).
+      if (labelEl.parentElement) {
+        for (const n of labelEl.parentElement.querySelectorAll("textarea, [contenteditable], p, div, span")) {
+          if (labelEl.contains(n) || n.contains(labelEl)) continue;
+          if (!(n.compareDocumentPosition(labelEl) & Node.DOCUMENT_POSITION_PRECEDING)) continue;
+          const txt = (n.tagName === "TEXTAREA" ? n.value : n.textContent).trim();
+          if (txt && !LABEL_RE.test(txt)) return txt;
         }
       }
     }
@@ -97,7 +114,10 @@
       ".original-transcript, [data-testid='original-transcript'], #original-transcript, [class*='original']"
     );
     if (candidate) {
-      const txt = (candidate.tagName === "TEXTAREA" ? candidate.value : candidate.textContent).trim();
+      let txt = (candidate.tagName === "TEXTAREA" ? candidate.value : candidate.textContent).trim();
+      // A container matched (e.g. the section wrapper): drop a leading label
+      // so the returned value is the transcript text itself.
+      txt = txt.replace(/^original transcript\s*/i, "").trim();
       if (txt) return txt;
     }
 
