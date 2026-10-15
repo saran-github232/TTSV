@@ -1,4 +1,10 @@
-# TTS Review Copilot — v2.4.0
+# TTS Review Copilot — v2.4.1
+
+### Extension startup fix (2.4.1)
+
+The background entry point is now `service-worker.js` at the extension root. It loads the existing background code and VO modules using explicit extension-root URLs. A real Chromium startup test verifies all dependencies, popup loading and a message round trip: `node tests/extension-startup.mjs` (same Playwright setup as the browser tests).
+
+If Chrome reports **Failed to execute importScripts / background.js failed to load**, update the complete extension folder, not only `vo/`. Extract the latest complete download into a new folder and select that folder's `manifest.json` directory with **Load unpacked**. Disable the old copy if loading a new folder. Keep your API keys available to paste again if Chrome assigns the new folder a different extension ID. Then refresh Neevo. Clear Chrome's old error log after reloading to distinguish old errors from a new failure. API keys cannot fix a local-script startup failure.
 
 ### NVIDIA audio support and API fixes (2.4.0)
 
