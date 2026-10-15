@@ -1,5 +1,5 @@
 // Additive entry point: existing background logic stays unchanged.
-importScripts('../background/background.js', 'rubric.js', 'analysis.js');
+importScripts('../background/background.js', 'rubric.js', 'http.js', 'analysis.js');
 const voTransfers = new Map();
 chrome.runtime.onMessage.addListener((request, sender, respond) => {
   const key = `${sender.tab?.id}:${sender.frameId}:${request.id}`;

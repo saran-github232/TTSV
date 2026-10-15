@@ -11,7 +11,9 @@
     label{display:block;margin:10px 0}input[type=file]{max-width:100%}audio{width:100%;height:34px} .muted{color:#c2cde0;font-size:12px} #result{white-space:pre-wrap}ol{padding-left:22px}
     </style><details class="panel"><summary>VO · Speech naturalness</summary><div class="body">
     <p>Listen with headphones. Judge pronunciation, pacing, intonation and audible artifacts.</p>
-    <p class="muted">VO sends the full clip and five reference audios to Gemini using your saved key. AI suggestions need your review.</p>
+    <p class="muted">VO sends the full clip and five reference audios to the selected provider using your saved key. AI suggestions need your review.</p>
+    <label>Audio provider<select id="provider"><option value="nvidia">NVIDIA · Nano Omni 30B</option><option value="gemini">Gemini</option></select></label>
+    <p class="muted">NVIDIA: save your key in the popup's NVIDIA tab. Nano Omni officially supports English; ratings for other languages are unverified. Gemini uses its saved key and model.</p>
     <label><input id="auto" type="checkbox" checked> Analyze automatically when I play a clip</label>
     <button id="analyze">Analyze current clip</button>
     <p id="source" class="muted">Play a page clip to select it.</p>
@@ -47,6 +49,15 @@
     }
   });
   const el = id => root.getElementById(id);
+  const providerReady = chrome.storage.sync.get(['voProvider']).then(settings => {
+    el('provider').value = settings.voProvider === 'gemini' ? 'gemini' : 'nvidia';
+  });
+  let providerSave = providerReady;
+  el('provider').onchange = () => {
+    clear(); lastAuto = '';
+    providerSave = chrome.storage.sync.set({ voProvider: el('provider').value });
+    providerSave.catch(() => { el('result').textContent = 'Could not save the provider. Refresh the page and retry.'; });
+  };
   for (const anchor of VORubric.anchors) {
     const p = document.createElement('p');
     p.textContent = `${anchor.score} - ${VORubric.label(anchor.score)}: ${anchor.reason}`;
@@ -73,9 +84,10 @@
     select(audio);
     clear();
     const ticket = generation;
-    busy = true; el('analyze').disabled = true;
-    el('result').textContent = 'Listening with Gemini…';
+    busy = true; el('analyze').disabled = true; el('provider').disabled = true;
+    el('result').textContent = 'Preparing audio analysis…';
     try {
+      await providerSave;
       if (!source || !/^(https?:|blob:|data:audio\/)/.test(source)) throw new Error('Waiting for a readable player source. Replay the task audio.');
       const responseAudio = await fetch(source, { signal: AbortSignal.timeout(60000) });
       if (!responseAudio.ok) throw new Error('The task audio could not be read. Replay it to refresh the link.');
@@ -91,7 +103,7 @@
     } catch (error) {
       if (ticket === generation) { el('result').textContent = `VO: ${error.message || 'Could not read audio. Replay the task audio.'}`; lastAuto = ''; }
     } finally {
-      busy = false; el('analyze').disabled = false;
+      busy = false; el('analyze').disabled = false; el('provider').disabled = false;
       if (pendingAuto) {
         pendingAuto = false;
         if (el('auto').checked && current?.isConnected && source) { lastAuto = source; run(); }

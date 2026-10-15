@@ -12,7 +12,7 @@ globalThis.VOAudio = {
     else if (text.startsWith('fLaC')) type = 'audio/flac';
     else if (text.slice(4, 8) === 'ftyp') type = 'audio/mp4';
     else if (b[0] === 26 && b[1] === 69 && b[2] === 223 && b[3] === 163) type = 'audio/webm';
-    if (type) return new Blob([blob], { type });
+    if (['audio/wav', 'audio/mpeg'].includes(type)) return new Blob([blob], { type });
     // Decode browser-supported formats and preserve full duration as PCM WAV.
     const context = new AudioContext();
     try {
@@ -51,7 +51,7 @@ globalThis.VOAudio = {
         });
         await send({ action: 'VO_CHUNK', id, data });
       }
-      status('Listening with Gemini…');
+      status('AI is listening… Temporary server errors are retried automatically.');
       return await send({ action: 'VO_FINISH', id });
     } finally { await chrome.runtime.sendMessage({ action: 'VO_CANCEL', id }).catch(() => {}); }
   }

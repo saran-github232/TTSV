@@ -1,4 +1,16 @@
-# TTS Review Copilot — v2.3.0
+# TTS Review Copilot — v2.4.0
+
+### NVIDIA audio support and API fixes (2.4.0)
+
+**Recommended NVIDIA option for English VO clips:** [Nemotron 3 Nano Omni 30B](https://build.nvidia.com/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning). Its presence was checked against the live NVIDIA model catalog. Unlike the existing transcript-only path, VO sends actual audio using the documented audio content parts. This is a capability-based recommendation, not a benchmark proving rating accuracy. The [model card](https://build.nvidia.com/nvidia/nemotron-3-nano-omni-30b-a3b-reasoning/modelcard) documents English-only support, WAV/MP3 input and up to one hour of audio. Telugu and other languages are unverified. Other browser-decodable formats are converted to WAV.
+
+1. Reload version 2.4.0 and refresh the task page.
+2. Open the extension popup, choose the NVIDIA tab, paste your key from build.nvidia.com and click **Save Settings**.
+3. In VO, select **NVIDIA · Nano Omni 30B**, then play the task clip. The popup's transcript model menu does not change the VO model. No Gemini key is required for NVIDIA VO.
+
+The provider selector is saved across pages. There is no silent fallback or audio upload to another provider. Gemini remains available in that selector. Both VO providers retry HTTP 500/502/503/504 twice with bounded backoff; 401/403/404/413/422/429 receive specific guidance without repeated requests. NVIDIA 202 responses are polled with a bounded wait. Network failures and timeouts are reported clearly. A 503 means temporary service failure or overload, not proof of an invalid key. Account permissions, exhausted quota and provider outages cannot be repaired by extension code.
+
+Run `node tests/vo-http.mjs` and `node tests/vo-tests.mjs` for retry, polling, error and provider routing coverage. Tests use simulated responses; live authenticated NVIDIA inference and speech-rating accuracy still need verification with your account.
 
 ### Neevo support (2.2.1)
 
@@ -12,7 +24,7 @@ Validation: `node tests/neevo-support.mjs` checks five different job IDs, site p
 
 - Play each task clip to receive an AI rating automatically, including all half-point scores. Upload and manual-rating controls have been removed.
 - Detect WAV, MP3, Ogg, FLAC, MP4 and WebM from their bytes, including extensionless task URLs and generic server content types. Other browser-decodable formats are converted to PCM WAV.
-- Removed the extension's 8 MB rejection. Audio is transferred in small messages; larger clips use the Gemini Files API automatically. This is not unlimited: browser memory, network conditions, Gemini file/context limits and quota still apply. Full audio is preserved; VO does not silently truncate it.
+- Removed the extension's 8 MB rejection. Audio is transferred in small messages; larger clips use the Gemini Files API automatically when Gemini is selected. NVIDIA receives inline audio and its own request limits apply. This is not unlimited: browser memory, network conditions, Gemini file/context limits and quota still apply. Full audio is preserved; VO does not silently truncate it.
 - Temporary Gemini files are deleted after analysis on a best-effort basis. If deletion fails or the worker is interrupted, Google's file retention policy applies. See [Gemini Files API](https://ai.google.dev/gemini-api/docs/files).
 - Each new played clip clears the previous score. If another clip is already being analyzed, VO queues the latest played clip and suppresses the old result.
 
@@ -23,7 +35,7 @@ Validation: original 35 tests, VO logic tests, chunk-transfer tests and simulate
 VO is a separate, collapsible section at the bottom-left of supported pages. The existing transcript, emotion, and event scripts are unchanged.
 
 1. Reload the extension in `chrome://extensions`, then refresh your task page.
-2. Save a Gemini API key and an audio-capable Gemini model in the existing popup settings. Turn off Force Offline Mode. VO always uses Gemini, independently of the provider selected for transcript review.
+2. Save your NVIDIA API key in the popup NVIDIA tab and click Save Settings. Turn off Force Offline Mode. VO defaults to NVIDIA Nano Omni 30B, independently of the transcript model menu. You can choose Gemini inside VO to use your saved Gemini key/model instead.
 3. Play the task audio. **VO · Speech naturalness** analyzes it automatically, then shows the AI score and explanation. Automatic analysis is on by default; you can turn it off. **Analyze current clip** retries the selected audio.
 4. Read the AI score, confidence and audible evidence. VO has no upload control or manual rating dropdown. **Copy suggestion** copies the AI score and explanation. VO does not fill or submit the task form.
 
@@ -39,11 +51,11 @@ VO is a separate, collapsible section at the bottom-left of supported pages. The
 | 4.5 | Good-Excellent |
 | 5 | Excellent |
 
-Open **Scale and reference clips** to hear the five supplied anchors and read the criteria. All five anchors are also included in each AI request. They guide comparison; they do not guarantee a particular score for another recording. Naturalness is subjective and AI suggestions need human review. Silence or insufficient speech produces an explanation instead of an invented score.
+Open **Scale and reference clips** to hear the five supplied anchors and read the criteria. All five anchors are also included in each AI request to the selected provider. They guide comparison; they do not guarantee a particular score for another recording. Naturalness is subjective and AI suggestions need human review. Silence or insufficient speech produces an explanation instead of an invented score.
 
-**Privacy and limits:** Auto-analysis is on by default. Playing a task clip sends the full selected clip, even if you only play part of it, plus the five anchors to Google's Gemini API. This may consume quota. Keys remain in extension storage and are used by the background worker. No microphone or system-audio recording is used. Detection covers HTML audio/video players in the main document on Neevo, Sabi and localhost allowed sites. Cross-origin restrictions, embedded frames, DRM, Web Audio-only players and inaccessible streams can prevent automatic reading. VO shows an error rather than inventing a score. Other task domains need a deliberate manifest update. Version 2.2.1 adds only the Neevo HTTPS host permission. `Alt+H` hides VO with the existing panel.
+**Privacy and limits:** Auto-analysis is on by default. Playing a task clip sends the full selected clip, even if you only play part of it, plus the five anchors to the selected NVIDIA or Gemini API. This may consume quota. Keys remain in extension storage and are used by the background worker. No microphone or system-audio recording is used. Detection covers HTML audio/video players in the main document on Neevo, Sabi and localhost allowed sites. Cross-origin restrictions, embedded frames, DRM, Web Audio-only players and inaccessible streams can prevent automatic reading. VO shows an error rather than inventing a score. Other task domains need a deliberate manifest update. Version 2.2.1 adds only the Neevo HTTPS host permission. `Alt+H` hides VO with the existing panel.
 
-**Implementation:** `vo/worker.js` loads the existing worker plus the independent VO analyzer. `vo/rubric.js` defines the scale and strict result validation; `vo/analysis.js` sends audio to Gemini; `vo/content.js` owns the isolated panel and playback listener; `vo/audio.js` detects actual audio bytes and sends them in small transport chunks; `vo/anchors/` contains the user-supplied reference files. The manifest and popup page diagnostics connect the separate VO module to supported sites. The API follows [Gemini audio understanding](https://ai.google.dev/gemini-api/docs/audio).
+**Implementation:** `vo/worker.js` loads the existing worker plus the independent VO analyzer. `vo/rubric.js` defines the scale and strict result validation; `vo/analysis.js` sends audio to the selected provider; `vo/http.js` handles retries and provider errors; `vo/content.js` owns the isolated panel and playback listener; `vo/audio.js` detects actual audio bytes and sends them in small transport chunks; `vo/anchors/` contains the user-supplied reference files. The manifest and popup page diagnostics connect the separate VO module to supported sites. The API follows [Gemini audio understanding](https://ai.google.dev/gemini-api/docs/audio).
 
 **Validation:** Run `node tests/run-tests.mjs` and `node tests/vo-tests.mjs`. For browser flow tests, install Playwright outside the extension or make it available through `NODE_PATH`, then run `node tests/vo-browser.mjs`. Optionally set `VO_CHROMIUM` to a Chromium executable. Browser flow tests simulate Chrome messaging and AI replies; they do not establish live model accuracy or authenticated portal compatibility. A live check still requires a configured Gemini key and your task page.
 

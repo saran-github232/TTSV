@@ -14,8 +14,8 @@ try {
   await page.goto('https://neevo.definedcrowd.com/en-us/crowd-tasks/task/?jobMemberId=5371238');
   await page.setContent('<audio id="clip" preload="none" src="https://neevo.definedcrowd.com/extensionless-clip"></audio><input type="radio" id="portal"><textarea id="feedback"></textarea>');
   await page.evaluate(() => {
-    window.calls = []; window.listeners = [];
-    window.chrome = {runtime:{onMessage:{addListener:fn=>window.listeners.push(fn)},getURL:p=>'https://neevo.definedcrowd.com/'+p,sendMessage:async r=>{
+    window.calls = []; window.listeners = []; window.voSettings = {};
+    window.chrome = {storage:{sync:{get:async()=>window.voSettings,set:async value=>{Object.assign(window.voSettings,value);}}},runtime:{onMessage:{addListener:fn=>window.listeners.push(fn)},getURL:p=>'https://neevo.definedcrowd.com/'+p,sendMessage:async r=>{
       window.calls.push(r);
       if (r.action !== 'VO_FINISH') return {success:true};
       if (window.delay) await new Promise(resolve => window.release = resolve);
@@ -31,6 +31,11 @@ try {
   assert.equal(await page.locator('#rating').count(),0);
   assert.equal(await page.locator('#file').count(),0);
   assert.equal(await page.locator('#auto').isChecked(),true);
+  assert.equal(await page.locator('#provider').inputValue(),'nvidia');
+  await page.locator('#provider').selectOption('gemini');
+  assert.equal(await page.evaluate(()=>window.voSettings.voProvider),'gemini');
+  await page.locator('#provider').selectOption('nvidia');
+  assert.equal(await page.evaluate(()=>window.voSettings.voProvider),'nvidia');
   assert.equal(await page.locator('#anchors audio').count(),5);
   const large = await page.evaluate(async () => {
     const bytes = new Uint8Array(10 * 1024 * 1024);
