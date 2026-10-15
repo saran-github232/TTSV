@@ -12,12 +12,10 @@
     </style><details class="panel"><summary>VO · Speech naturalness</summary><div class="body">
     <p>Listen with headphones. Judge pronunciation, pacing, intonation and audible artifacts.</p>
     <p class="muted">VO sends the full clip and five reference audios to Gemini using your saved key. AI suggestions need your review.</p>
-    <label><input id="auto" type="checkbox"> Analyze automatically when I play a clip</label>
+    <label><input id="auto" type="checkbox" checked> Analyze automatically when I play a clip</label>
     <button id="analyze">Analyze current clip</button>
-    <label>Or choose an audio file (up to 8 MB)<input id="file" type="file" accept="audio/*"></label>
     <p id="source" class="muted">Play a page clip to select it.</p>
     <p id="result" role="status" aria-live="polite">No rating yet.</p>
-    <label>Your final rating<select id="rating"><option value="">Choose after listening</option></select></label>
     <button id="copy" disabled>Copy suggestion</button>
     <details><summary>Scale and reference clips</summary><p class="muted">Half-point ratings sit between adjacent examples. These anchors are guidance, not exact matches.</p><div id="anchors"></div></details>
     </div></details>`;
@@ -49,7 +47,6 @@
     }
   });
   const el = id => root.getElementById(id);
-  VORubric.labels.forEach((label, i) => el('rating').add(new Option(`${1 + i / 2} - ${label}`, 1 + i / 2)));
   for (const anchor of VORubric.anchors) {
     const p = document.createElement('p');
     p.textContent = `${anchor.score} - ${VORubric.label(anchor.score)}: ${anchor.reason}`;
@@ -61,40 +58,30 @@
   }
   let current = null, source = '', generation = 0, busy = false, suggestion = '', lastAuto = '', pendingAuto = false;
   function clear() {
-    generation++; suggestion = ''; el('copy').disabled = true; el('rating').value = '';
-    el('result').textContent = 'No rating yet.';
+    generation++; suggestion = ''; el('copy').disabled = true;
+    el('result').textContent = 'Play the task audio to get an AI rating.';
   }
   function select(audio) {
-    const next = audio.currentSrc || audio.src;
+    const next = audio.currentSrc || audio.src || audio.querySelector('source')?.src || '';
     if (audio !== current || next !== source) { clear(); current = audio; source = next; lastAuto = ''; }
-    el('source').textContent = next ? `Selected: ${next.split('/').pop().split('?')[0].slice(0, 90)}` : 'No readable audio source. Use file upload.';
+    el('source').textContent = next ? `Selected: ${next.split('/').pop().split('?')[0].slice(0, 90)}` : 'No readable audio source. Replay the task audio.';
   }
-  async function run(file) {
+  async function run() {
     if (busy) return;
-    if (!file) {
-      const audio = current?.isConnected ? current : document.querySelector('audio,video');
-      if (!audio) { el('result').textContent = 'No page audio found. Choose an audio file.'; return; }
-      select(audio);
-    }
+    const audio = current?.isConnected ? current : document.querySelector('audio,video');
+    if (!audio) { el('result').textContent = 'Waiting for audio. Play the task clip.'; return; }
+    select(audio);
     clear();
     const ticket = generation;
-    busy = true; el('analyze').disabled = true; el('file').disabled = true;
+    busy = true; el('analyze').disabled = true;
     el('result').textContent = 'Listening with Gemini…';
     try {
-      let blob = file;
-      if (!blob) {
-        if (!source || !/^(https?:|blob:|data:audio\/)/.test(source)) throw new Error('This player has no accessible audio file. Use file upload.');
-        const response = await fetch(source, { signal: AbortSignal.timeout(20000) });
-        if (!response.ok) throw new Error('Could not read this clip. Use file upload.');
-        if (Number(response.headers.get('content-length')) > 8 * 1024 * 1024) throw new Error('Clip exceeds 8 MB.');
-        blob = await response.blob();
-      }
-      if (!blob.size || blob.size > 8 * 1024 * 1024) throw new Error('Choose a non-empty clip up to 8 MB.');
-      const mimeType = blob.type.split(';')[0] || (/\.wav(?:[?#]|$)/i.test(file?.name || source) ? 'audio/wav' : /\.mp3(?:[?#]|$)/i.test(file?.name || source) ? 'audio/mpeg' : '');
-      const data = await new Promise((resolve, reject) => {
-        const reader = new FileReader(); reader.onload = () => resolve(reader.result.split(',')[1]); reader.onerror = reject; reader.readAsDataURL(blob);
-      });
-      const response = await chrome.runtime.sendMessage({ action: 'VO_ANALYZE', payload: { audioBase64: data, mimeType } });
+      if (!source || !/^(https?:|blob:|data:audio\/)/.test(source)) throw new Error('Waiting for a readable player source. Replay the task audio.');
+      const responseAudio = await fetch(source, { signal: AbortSignal.timeout(60000) });
+      if (!responseAudio.ok) throw new Error('The task audio could not be read. Replay it to refresh the link.');
+      const blob = await VOAudio.normalize(await responseAudio.blob());
+      if (ticket !== generation) return;
+      const response = await VOAudio.send(blob, message => { if (ticket === generation) el('result').textContent = message; });
       if (ticket !== generation) return;
       if (!response?.success) throw new Error(response?.error || 'Extension disconnected. Reload this page.');
       const result = VORubric.validate(response.data);
@@ -102,27 +89,29 @@
       el('result').textContent = suggestion;
       el('copy').disabled = false;
     } catch (error) {
-      if (ticket === generation) { el('result').textContent = `VO: ${error.message || 'Could not read audio. Use file upload.'}`; lastAuto = ''; }
+      if (ticket === generation) { el('result').textContent = `VO: ${error.message || 'Could not read audio. Replay the task audio.'}`; lastAuto = ''; }
     } finally {
-      busy = false; el('analyze').disabled = false; el('file').disabled = false;
+      busy = false; el('analyze').disabled = false;
       if (pendingAuto) {
         pendingAuto = false;
         if (el('auto').checked && current?.isConnected && source) { lastAuto = source; run(); }
       }
     }
   }
-  document.addEventListener('play', event => {
+  function onPlayback(event) {
     if (!(event.target instanceof HTMLMediaElement)) return;
     select(event.target);
     if (el('auto').checked && source !== lastAuto) {
       if (busy) pendingAuto = true;
       else { lastAuto = source; run(); }
     }
-  }, true);
+  }
+  document.addEventListener('play', onPlayback, true);
+  document.addEventListener('playing', onPlayback, true);
   document.addEventListener('emptied', event => { if (event.target === current) { clear(); source = ''; lastAuto = ''; } }, true);
   new MutationObserver(() => { if (current && !current.isConnected) { clear(); current = null; source = ''; lastAuto = ''; } }).observe(document, { childList: true, subtree: true });
   el('analyze').onclick = () => run();
-  el('file').onchange = () => { const file = el('file').files[0]; if (file) { el('source').textContent = `File: ${file.name}`; run(file); } };
+  el('auto').onchange = () => { if (el('auto').checked) { const audio = [...document.querySelectorAll('audio,video')].find(a => !a.paused); if (audio) onPlayback({ target: audio }); } };
   el('copy').onclick = async () => {
     try { await navigator.clipboard.writeText(suggestion); } catch { el('result').textContent = `${suggestion}\nCopy unavailable. Select the text above to copy it.`; }
   };

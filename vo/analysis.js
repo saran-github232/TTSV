@@ -1,5 +1,4 @@
 globalThis.VOAnalysis = (() => {
-  const MAX_BYTES = 8 * 1024 * 1024;
   const types = ['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/flac', 'audio/aac', 'audio/webm', 'audio/mp4'];
   function base64(buffer) {
     const bytes = new Uint8Array(buffer);
@@ -8,9 +7,9 @@ globalThis.VOAnalysis = (() => {
     return btoa(value);
   }
   async function analyze(payload) {
-    if (!payload || !types.includes(payload.mimeType) || typeof payload.audioBase64 !== 'string' ||
-        !payload.audioBase64.length || payload.audioBase64.length > Math.ceil(MAX_BYTES / 3) * 4 ||
-        !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.audioBase64)) throw new Error('Choose a supported audio clip smaller than 8 MB.');
+    if (!payload || !types.includes(payload.mimeType)) throw new Error('The audio format was not recognized. Replay the task clip.');
+    if (typeof payload.audioBase64 !== 'string' || !payload.audioBase64.length ||
+        !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.audioBase64)) throw new Error('The audio data is empty or damaged. Replay the task clip.');
     const settings = await chrome.storage.sync.get(['geminiApiKey', 'selectedModel', 'offlineMode']);
     if (settings.offlineMode) throw new Error('Turn off Force Offline Mode to use VO. Naturalness requires audio analysis.');
     if (!settings.geminiApiKey?.trim()) throw new Error('Save a Gemini API key in the extension settings to use VO.');
@@ -22,7 +21,13 @@ globalThis.VOAnalysis = (() => {
       parts.push({ text: `REFERENCE ${anchor.score} - ${VORubric.label(anchor.score)}` },
         { inlineData: { mimeType: anchor.file.endsWith('.wav') ? 'audio/wav' : 'audio/mpeg', data: base64(await response.arrayBuffer()) } });
     }
-    parts.push({ text: 'TARGET: Rate this clip only.' }, { inlineData: { mimeType: payload.mimeType, data: payload.audioBase64 } });
+    let uploaded;
+    try {
+    // Keep short clips inline. Larger clips use Google's Files API automatically.
+    const target = payload.audioBase64.length > 12 * 1024 * 1024
+      ? (uploaded = await upload(payload, settings.geminiApiKey.trim()), { fileData: { mimeType: payload.mimeType, fileUri: uploaded.uri } })
+      : { inlineData: { mimeType: payload.mimeType, data: payload.audioBase64 } };
+    parts.push({ text: 'TARGET: Rate this clip only.' }, target);
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiApiKey.trim() },
       signal: AbortSignal.timeout(90000),
@@ -35,6 +40,42 @@ globalThis.VOAnalysis = (() => {
     try { value = JSON.parse(raw); } catch { throw new Error('No usable rating returned. Retry or review manually.'); }
     if (value?.score === null) throw new Error(`Unable to rate: ${String(value.reason || 'Insufficient audible speech.').slice(0, 1000)}`);
     return VORubric.validate(value);
+    } finally {
+      if (uploaded?.name) await fetch(`https://generativelanguage.googleapis.com/v1beta/${uploaded.name}`, {
+        method: 'DELETE', headers: { 'x-goog-api-key': settings.geminiApiKey.trim() }, signal: AbortSignal.timeout(15000)
+      }).catch(() => {});
+    }
+  }
+  async function upload(payload, key) {
+    const binary = atob(payload.audioBase64);
+    const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
+    const headers = { 'x-goog-api-key': key };
+    const start = await fetch('https://generativelanguage.googleapis.com/upload/v1beta/files', {
+      method: 'POST', headers: { ...headers, 'Content-Type': 'application/json',
+        'X-Goog-Upload-Protocol': 'resumable', 'X-Goog-Upload-Command': 'start',
+        'X-Goog-Upload-Header-Content-Length': String(bytes.length), 'X-Goog-Upload-Header-Content-Type': payload.mimeType },
+      body: JSON.stringify({ file: { display_name: 'VO task audio' } }), signal: AbortSignal.timeout(25000)
+    });
+    if (!start.ok) throw new Error(`Gemini audio upload could not start (${start.status}). Check quota and retry.`);
+    const url = start.headers.get('x-goog-upload-url');
+    if (!url || new URL(url).origin !== 'https://generativelanguage.googleapis.com') throw new Error('Gemini returned an unexpected upload address.');
+    const response = await fetch(url, { method: 'POST', headers: { ...headers, 'X-Goog-Upload-Offset': '0', 'X-Goog-Upload-Command': 'upload, finalize' }, body: bytes, signal: AbortSignal.timeout(120000) });
+    if (!response.ok) throw new Error(`Gemini audio upload failed (${response.status}). The provider may have reached its size or quota limit.`);
+    let file = (await response.json()).file;
+    if (!file?.name || !/^files\/[a-zA-Z0-9_-]+$/.test(file.name)) throw new Error('Gemini returned an invalid audio file.');
+    try {
+      for (let i = 0; file.state === 'PROCESSING' && i < 60; i++) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const check = await fetch(`https://generativelanguage.googleapis.com/v1beta/${file.name}`, { headers, signal: AbortSignal.timeout(20000) });
+        if (!check.ok) throw new Error('Could not check Gemini audio processing. Retry.');
+        file = await check.json();
+      }
+      if (file.state !== 'ACTIVE' || !file.uri) throw new Error('Gemini could not finish processing this audio. Retry.');
+      return file;
+    } catch (error) {
+      await fetch(`https://generativelanguage.googleapis.com/v1beta/${file.name}`, { method: 'DELETE', headers, signal: AbortSignal.timeout(15000) }).catch(() => {});
+      throw error;
+    }
   }
   return { analyze };
 })();

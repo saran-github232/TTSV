@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "TTS Review AI Auto-Validator & Emotion Tagger",
-  "version": "2.2.1",
+  "version": "2.3.0",
   "description": "TTS transcript and emotion review on Sabi, plus VO speech naturalness ratings on Neevo.",
   "permissions": [
     "storage",
@@ -49,6 +49,7 @@
       ],
       "js": [
         "vo/rubric.js",
+        "vo/audio.js",
         "vo/content.js"
       ],
       "run_at": "document_end"
