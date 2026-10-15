@@ -16,6 +16,8 @@
     <p class="muted">NVIDIA: save your key in the popup's NVIDIA tab. Nano Omni officially supports English; ratings for other languages are unverified. Gemini uses its saved key and model.</p>
     <label><input id="auto" type="checkbox" checked> Analyze automatically when I play a clip</label>
     <button id="analyze">Analyze current clip</button>
+    <button id="cancel" disabled>Cancel</button>
+    <p id="progress" class="muted" aria-live="polite">Ready. Clips are analyzed one at a time.</p>
     <p id="source" class="muted">Play a page clip to select it.</p>
     <p id="result" role="status" aria-live="polite">No rating yet.</p>
     <button id="copy" disabled>Copy suggestion</button>
@@ -68,6 +70,7 @@
     el('anchors').append(p, audio);
   }
   let current = null, source = '', generation = 0, busy = false, suggestion = '', lastAuto = '', pendingAuto = false;
+  let controller;
   function clear() {
     generation++; suggestion = ''; el('copy').disabled = true;
     el('result').textContent = 'Play the task audio to get an AI rating.';
@@ -85,15 +88,20 @@
     clear();
     const ticket = generation;
     busy = true; el('analyze').disabled = true; el('provider').disabled = true;
+    controller = new AbortController(); el('cancel').disabled = false;
+    const started = Date.now();
+    const progress = setInterval(() => {
+      el('progress').textContent = `${Math.floor((Date.now() - started) / 1000)}s elapsed${pendingAuto ? ' · Next clip waiting' : ' · Processing current clip'}`;
+    }, 1000);
     el('result').textContent = 'Preparing audio analysis…';
     try {
       await providerSave;
       if (!source || !/^(https?:|blob:|data:audio\/)/.test(source)) throw new Error('Waiting for a readable player source. Replay the task audio.');
-      const responseAudio = await fetch(source, { signal: AbortSignal.timeout(60000) });
+      const responseAudio = await fetch(source, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]) });
       if (!responseAudio.ok) throw new Error('The task audio could not be read. Replay it to refresh the link.');
       const blob = await VOAudio.normalize(await responseAudio.blob());
       if (ticket !== generation) return;
-      const response = await VOAudio.send(blob, message => { if (ticket === generation) el('result').textContent = message; });
+      const response = await VOAudio.send(blob, message => { if (ticket === generation) el('result').textContent = message; }, controller.signal);
       if (ticket !== generation) return;
       if (!response?.success) throw new Error(response?.error || 'Extension disconnected. Reload this page.');
       const result = VORubric.validate(response.data);
@@ -103,6 +111,8 @@
     } catch (error) {
       if (ticket === generation) { el('result').textContent = `VO: ${error.message || 'Could not read audio. Replay the task audio.'}`; lastAuto = ''; }
     } finally {
+      clearInterval(progress); el('cancel').disabled = true;
+      el('progress').textContent = `Finished in ${Math.ceil((Date.now() - started) / 1000)}s. Ready for the next clip.`;
       busy = false; el('analyze').disabled = false; el('provider').disabled = false;
       if (pendingAuto) {
         pendingAuto = false;
@@ -114,7 +124,7 @@
     if (!(event.target instanceof HTMLMediaElement)) return;
     select(event.target);
     if (el('auto').checked && source !== lastAuto) {
-      if (busy) pendingAuto = true;
+      if (busy) { pendingAuto = true; el('result').textContent = 'Next clip queued. Waiting for the current request to finish.'; }
       else { lastAuto = source; run(); }
     }
   }
@@ -123,6 +133,7 @@
   document.addEventListener('emptied', event => { if (event.target === current) { clear(); source = ''; lastAuto = ''; } }, true);
   new MutationObserver(() => { if (current && !current.isConnected) { clear(); current = null; source = ''; lastAuto = ''; } }).observe(document, { childList: true, subtree: true });
   el('analyze').onclick = () => run();
+  el('cancel').onclick = () => { pendingAuto = false; lastAuto = ''; controller?.abort(); el('result').textContent = 'Analysis cancelled. Play a clip or click Analyze current clip to retry.'; };
   el('auto').onchange = () => { if (el('auto').checked) { const audio = [...document.querySelectorAll('audio,video')].find(a => !a.paused); if (audio) onPlayback({ target: audio }); } };
   el('copy').onclick = async () => {
     try { await navigator.clipboard.writeText(suggestion); } catch { el('result').textContent = `${suggestion}\nCopy unavailable. Select the text above to copy it.`; }

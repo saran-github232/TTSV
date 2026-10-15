@@ -83,6 +83,17 @@ try {
   await page.evaluate(()=>{document.getElementById('clip').remove();window.release();});
   await page.waitForFunction(()=>!document.getElementById('tts-vo-host').shadowRoot.getElementById('analyze').disabled);
   assert.equal(await page.locator('#result').textContent(),'Play the task audio to get an AI rating.');
+  await page.evaluate(()=>{
+    window.release=null; window.delay=true;
+    const audio=document.createElement('audio'); audio.id='clip'; audio.preload='none';
+    audio.src='https://neevo.definedcrowd.com/cancel-test'; document.body.append(audio);
+    audio.dispatchEvent(new Event('play'));
+  });
+  await page.waitForFunction(()=>!!window.release);
+  await page.locator('#cancel').click();
+  await page.waitForFunction(()=>!document.getElementById('tts-vo-host').shadowRoot.getElementById('analyze').disabled);
+  assert.ok((await page.locator('#result').textContent()).toLowerCase().includes('cancelled'));
+  await page.evaluate(()=>window.release());
   await page.evaluate(()=>document.documentElement.setAttribute('data-tts-stealth','1'));
   assert.equal(await page.locator('#tts-vo-host').isVisible(),false);
   console.log('VO browser flow passed: automatic playback, extensionless octet-stream audio, next clip, result, errors, stale result, untouched portal and stealth.');

@@ -1,4 +1,14 @@
-# TTS Review Copilot — v2.4.1
+# TTS Review Copilot — v2.5.0
+
+### Faster responses and visible progress (2.5.0)
+
+The previous screenshot showed a pending AI request, not a provider error. VO now uses a shared 60-second deadline across inference retries and polling, instead of restarting a 90-second timeout per attempt. A 75-second message watchdog restores the controls if the extension worker stops replying. Fetching the task audio has a separate 20-second timeout; large Gemini uploads have separate upload/processing limits.
+
+NVIDIA requests disable extended thinking and cap the final response at 1024 tokens using the model's documented instruct mode. Full target audio and all five reference clips remain included. This reduces requested generation work, but actual speed and rating accuracy have not been benchmarked against a live account. Low confidence and insufficient-audio responses remain visible.
+
+The panel shows elapsed time, a **Cancel** button and when the next clip is waiting. Requests run one at a time. If you play several clips while busy, the latest selected clip runs next; intermediate clips are not kept in a batch queue. A late reply cannot replace the score for the current selection. Cancel stops the local wait and aborts the inference fetch where active; already accepted provider processing may still consume quota.
+
+Validation includes actual unpacked-extension startup, provider routing, bounded retries, sequential next-clip processing, cancellation and stale-response protection. Install the complete ZIP and refresh your task tabs.
 
 ### Extension startup fix (2.4.1)
 

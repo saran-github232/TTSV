@@ -6,7 +6,7 @@ globalThis.VOAnalysis = (() => {
     for (let i = 0; i < bytes.length; i += 8192) value += String.fromCharCode(...bytes.subarray(i, i + 8192));
     return btoa(value);
   }
-  async function analyze(payload) {
+  async function analyze(payload, { signal } = {}) {
     if (!payload || !types.includes(payload.mimeType)) throw new Error('The audio format was not recognized. Replay the task clip.');
     if (typeof payload.audioBase64 !== 'string' || !payload.audioBase64.length ||
         !/^[A-Za-z0-9+/]+={0,2}$/.test(payload.audioBase64)) throw new Error('The audio data is empty or damaged. Replay the task clip.');
@@ -31,9 +31,11 @@ globalThis.VOAnalysis = (() => {
       content.push({ type: 'text', text: 'TARGET: Rate only this final clip. Return the requested JSON without markdown.' },
         { type: 'audio_url', audio_url: { url: `data:${payload.mimeType};base64,${payload.audioBase64}` } });
       const response = await VOHttp.request('https://integrate.api.nvidia.com/v1/chat/completions', {
+        signal,
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${settings.nvidiaApiKey.trim()}` },
         body: JSON.stringify({ model: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
-          messages: [{ role: 'user', content }], stream: false, temperature: 0.2, max_tokens: 4096, reasoning_budget: 1024 })
+          messages: [{ role: 'user', content }], stream: false, temperature: 0.2, max_tokens: 1024,
+          chat_template_kwargs: { enable_thinking: false } })
       }, 'NVIDIA');
       const body = await response.json();
       return parseRating(body.choices?.[0]?.message?.content);
@@ -45,7 +47,7 @@ globalThis.VOAnalysis = (() => {
     parts.push({ text: 'TARGET: Rate this clip only.' }, target);
     const response = await VOHttp.request(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': settings.geminiApiKey.trim() },
-      signal: AbortSignal.timeout(90000),
+      signal,
       body: JSON.stringify({ contents: [{ role: 'user', parts }], generationConfig: { responseMimeType: 'application/json', temperature: 0.1 } })
     }, 'Gemini');
     const body = await response.json();

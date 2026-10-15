@@ -1,11 +1,14 @@
 globalThis.VOHttp = {
-  async request(url, options, provider, { retries = 2 } = {}) {
+  async request(url, options, provider, { retries = 2, timeoutMs = 60000 } = {}) {
+    const deadline = AbortSignal.timeout(timeoutMs);
+    const signal = options.signal ? AbortSignal.any([options.signal, deadline]) : deadline;
     let failures = 0, polls = 0;
     for (;;) {
       let response;
-      try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(90000) }); }
+      try { signal.throwIfAborted(); response = await fetch(url, { ...options, signal }); }
       catch (error) {
-        throw new Error(`${provider}: ${error.name === 'TimeoutError' || error.name === 'AbortError' ? 'request timed out' : 'network request failed'}. Check your connection and retry.`);
+        if (options.signal?.aborted) throw new Error('Analysis cancelled.');
+        throw new Error(`${provider}: ${error.name === 'TimeoutError' || error.name === 'AbortError' ? 'request timed out after 60 seconds' : 'network request failed'}. Retry this clip or choose another provider.`);
       }
       if ([500, 502, 503, 504].includes(response.status) && failures < retries) {
         const hint = Number(response.headers?.get('retry-after'));

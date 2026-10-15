@@ -33,10 +33,17 @@ globalThis.VOAudio = {
     } catch { throw new Error('The player did not return decodable audio. It may be an expired link or a blocked stream. Replay the clip and retry.'); }
     finally { await context.close(); }
   },
-  async send(blob, status) {
+  async send(blob, status, signal) {
     const id = crypto.randomUUID();
     const send = async payload => {
-      const response = await chrome.runtime.sendMessage(payload);
+      let timer, abort;
+      const response = await new Promise((resolve, reject) => {
+        abort = () => reject(new Error('Analysis cancelled.'));
+        if (signal?.aborted) return abort();
+        signal?.addEventListener('abort', abort, {once:true});
+        timer = setTimeout(() => reject(new Error('Analysis timed out. Retry this clip.')), 75000);
+        chrome.runtime.sendMessage(payload).then(resolve, reject);
+      }).finally(() => { clearTimeout(timer); signal?.removeEventListener('abort', abort); });
       if (!response?.success) throw new Error(response?.error || 'Extension disconnected. Refresh the page.');
       return response;
     };
@@ -53,6 +60,6 @@ globalThis.VOAudio = {
       }
       status('AI is listening… Temporary server errors are retried automatically.');
       return await send({ action: 'VO_FINISH', id });
-    } finally { await chrome.runtime.sendMessage({ action: 'VO_CANCEL', id }).catch(() => {}); }
+    } finally { chrome.runtime.sendMessage({ action: 'VO_CANCEL', id }).catch(() => {}); }
   }
 };

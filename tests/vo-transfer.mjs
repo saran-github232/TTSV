@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 let listener, received;
 vm.runInNewContext(readFileSync(new URL('../vo/worker.js', import.meta.url), 'utf8'), {
-  importScripts() {}, Map, Date,
+  importScripts() {}, Map, Date, AbortController,
   chrome: { runtime: { onMessage: { addListener(fn) { listener = fn; } } } },
   VOAnalysis: { async analyze(payload) { received = payload; return { score:4 }; } }
 });
