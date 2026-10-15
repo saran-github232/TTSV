@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "TTS Review AI Auto-Validator & Emotion Tagger",
-  "version": "2.2.0",
-  "description": "Automated verbatim validation, event tag insertion, and 19-emotion style wrapping for TTS Audio Reviews on tts-review.sabi.com.",
+  "version": "2.2.1",
+  "description": "TTS transcript and emotion review on Sabi, plus VO speech naturalness ratings on Neevo.",
   "permissions": [
     "storage",
     "activeTab"
@@ -17,7 +17,8 @@
     "https://api.groq.com/*",
     "https://api.anthropic.com/*",
     "https://openrouter.ai/*",
-    "https://integrate.api.nvidia.com/*"
+    "https://integrate.api.nvidia.com/*",
+    "https://neevo.definedcrowd.com/*"
   ],
   "background": {
     "service_worker": "vo/worker.js"
@@ -43,7 +44,8 @@
         "https://tts-review.sabi.com/*",
         "https://*.sabi.com/*",
         "http://localhost:*/*",
-        "http://127.0.0.1:*/*"
+        "http://127.0.0.1:*/*",
+        "https://neevo.definedcrowd.com/*"
       ],
       "js": [
         "vo/rubric.js",
@@ -95,7 +97,8 @@
         "https://tts-review.sabi.com/*",
         "https://*.sabi.com/*",
         "http://localhost:*/*",
-        "http://127.0.0.1:*/*"
+        "http://127.0.0.1:*/*",
+        "https://neevo.definedcrowd.com/*"
       ]
     }
   ]

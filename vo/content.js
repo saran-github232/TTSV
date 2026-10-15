@@ -25,6 +25,29 @@
   const stealthStyle = document.createElement('style');
   stealthStyle.textContent = 'html[data-tts-stealth="1"] #tts-vo-host{display:none!important}';
   document.documentElement.append(stealthStyle);
+  const isNeevo = location.hostname === 'neevo.definedcrowd.com';
+  if (isNeevo) root.querySelector('details.panel').open = true;
+  chrome.runtime.onMessage.addListener((request, sender, respond) => {
+    if (request.action === 'VO_SHOW_PANEL') {
+      if (!host.isConnected) document.documentElement.append(host);
+      document.documentElement.setAttribute('data-tts-stealth', '0');
+      root.querySelector('details.panel').open = true;
+      respond({ alive: true, stealth: false });
+    } else if (request.action === 'VO_PANEL_PING') {
+      respond({ alive: host.isConnected, stealth: document.documentElement.getAttribute('data-tts-stealth') === '1' });
+    } else if (isNeevo && request.action === 'TOGGLE_STEALTH') {
+      const hidden = document.documentElement.getAttribute('data-tts-stealth') === '1';
+      document.documentElement.setAttribute('data-tts-stealth', hidden ? '0' : '1');
+      respond({ received: true });
+    } else if (isNeevo && request.action === 'TOGGLE_PLAYBACK') {
+      const audio = document.querySelector('audio,video');
+      if (audio) { if (audio.paused) audio.play().catch(() => {}); else audio.pause(); }
+      respond({ received: true });
+    } else if (isNeevo && request.action === 'TRIGGER_AUTO_REVIEW') {
+      run();
+      respond({ received: true });
+    }
+  });
   const el = id => root.getElementById(id);
   VORubric.labels.forEach((label, i) => el('rating').add(new Option(`${1 + i / 2} - ${label}`, 1 + i / 2)));
   for (const anchor of VORubric.anchors) {

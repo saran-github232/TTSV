@@ -201,6 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!url) return false;
     try {
       const u = new URL(url);
+      if (u.hostname === "neevo.definedcrowd.com" && u.protocol === "https:") return true;
       if (u.hostname === "tts-review.sabi.com" || u.hostname.endsWith(".sabi.com")) return true;
       return (u.hostname === "localhost" || u.hostname === "127.0.0.1") && u.protocol.startsWith("http");
     } catch (_) {
@@ -221,12 +222,13 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const tab = tabs[0];
       if (!tab || !isSupportedTab(tab.url)) {
-        setPanelStatus("○ Not a supported page. Open tts-review.sabi.com (or the http://localhost simulator), then reopen this popup.", "#94a3b8");
+        setPanelStatus("○ Open a Neevo task at neevo.definedcrowd.com, a Sabi review page, or the localhost simulator, then reopen this popup.", "#94a3b8");
         if (btn) btn.disabled = true;
         return;
       }
       if (btn) btn.disabled = false;
-      chrome.tabs.sendMessage(tab.id, { action: "PANEL_PING" }, (resp) => {
+      const isNeevo = new URL(tab.url).hostname === "neevo.definedcrowd.com";
+      chrome.tabs.sendMessage(tab.id, { action: isNeevo ? "VO_PANEL_PING" : "PANEL_PING" }, (resp) => {
         if (chrome.runtime.lastError || !resp) {
           void chrome.runtime.lastError;
           setPanelStatus("✗ Extension is not connected to this tab. This happens after installing/reloading the extension — just refresh the page (F5) and it will connect.", "#f87171");
@@ -235,7 +237,9 @@ document.addEventListener("DOMContentLoaded", () => {
         if (resp.stealth) {
           setPanelStatus("🙈 Stealth mode is ON — the panel is hidden on purpose (it stays hidden across page loads). Press Alt+H on the page, or click the button below to show it again.", "#fbbf24");
         } else if (resp.alive) {
-          setPanelStatus("✓ Copilot panel is active on this tab. Look for it on the page (bottom-right by default; drag the header to move it).", "#4ade80");
+          setPanelStatus(isNeevo
+            ? "✓ VO is active on this Neevo page. Look at the bottom-left. All job IDs are supported. Enable automatic analysis in VO, then play the task audio."
+            : "✓ Copilot panel is active on this tab. Look for it on the page (bottom-right by default; drag the header to move it).", "#4ade80");
         } else {
           setPanelStatus("✗ Panel is missing on this tab (the site may have wiped it). Click the button below to re-inject it.", "#f87171");
         }
@@ -247,8 +251,9 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnShowPanel) {
     btnShowPanel.addEventListener("click", () => {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]?.id) return;
-        chrome.tabs.sendMessage(tabs[0].id, { action: "SHOW_PANEL" }, () => void chrome.runtime.lastError);
+        if (!tabs[0]?.id || !isSupportedTab(tabs[0].url)) return;
+        const isNeevo = new URL(tabs[0].url).hostname === "neevo.definedcrowd.com";
+        chrome.tabs.sendMessage(tabs[0].id, { action: isNeevo ? "VO_SHOW_PANEL" : "SHOW_PANEL" }, () => void chrome.runtime.lastError);
         setTimeout(updatePanelStatus, 300);
       });
     });

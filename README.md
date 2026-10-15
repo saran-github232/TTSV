@@ -1,4 +1,12 @@
-# TTS Review Copilot — v2.2.0
+# TTS Review Copilot — v2.2.1
+
+### Neevo support (2.2.1)
+
+VO now opens on **every HTTPS page at `neevo.definedcrowd.com`**, including all task URLs and all `jobMemberId` values. There is no per-project ID list. The popup recognizes Neevo and reports VO status; **Show panel** opens or restores VO at the bottom-left. On Neevo, `Alt+A` analyzes the current clip, `Alt+P` toggles playback, and `Alt+H` hides/shows VO. The Sabi transcript panel stays specific to Sabi and the local simulator.
+
+After downloading this update, reload the extension at `chrome://extensions`, allow the new Neevo site access if Chrome asks, and **refresh each already-open Neevo tab**. Open VO, enable automatic analysis, then play a clip. The exact hostname is `neevo.definedcrowd.com` (as in your task link). The same settings work across your projects.
+
+Validation: `node tests/neevo-support.mjs` checks five different job IDs, site permissions, popup recognition, and existing site support. `node tests/vo-browser.mjs` exercises the VO flow on a simulated Neevo task URL, including popup status and restoring the panel. Live authenticated tasks and Gemini rating accuracy still require a check on your account.
 
 ## VO: speech naturalness
 
@@ -23,9 +31,9 @@ VO is a separate, collapsible section at the bottom-left of supported pages. The
 
 Open **Scale and reference clips** to hear the five supplied anchors and read the criteria. All five anchors are also included in each AI request. They guide comparison; they do not guarantee a particular score for another recording. Naturalness is subjective and AI suggestions need human review. Silence or insufficient speech produces an explanation instead of an invented score.
 
-**Privacy and limits:** Auto-analysis is off by default and resets on refresh. Enabling it sends the full selected clip, even if you only play part of it, plus the five anchors to Google's Gemini API. This may consume quota. Keys remain in extension storage and are used by the background worker. No microphone or system-audio recording is used. Detection covers HTML audio/video players in the main document on the existing Sabi/localhost allowed sites. Cross-origin restrictions, embedded frames, DRM, Web Audio-only players, and inaccessible streams may require file upload. Other task domains need a deliberate manifest update. No new host permissions were added. `Alt+H` hides VO with the existing panel.
+**Privacy and limits:** Auto-analysis is off by default and resets on refresh. Enabling it sends the full selected clip, even if you only play part of it, plus the five anchors to Google's Gemini API. This may consume quota. Keys remain in extension storage and are used by the background worker. No microphone or system-audio recording is used. Detection covers HTML audio/video players in the main document on Neevo, Sabi and localhost allowed sites. Cross-origin restrictions, embedded frames, DRM, Web Audio-only players, and inaccessible streams may require file upload. Other task domains need a deliberate manifest update. Version 2.2.1 adds only the Neevo HTTPS host permission. `Alt+H` hides VO with the existing panel.
 
-**Implementation:** `vo/worker.js` loads the existing worker plus the independent VO analyzer. `vo/rubric.js` defines the scale and strict result validation; `vo/analysis.js` sends audio to Gemini; `vo/content.js` owns the isolated panel and playback listener; `vo/anchors/` contains the user-supplied reference files. The manifest is the only existing runtime file changed. The API follows [Gemini audio understanding](https://ai.google.dev/gemini-api/docs/audio).
+**Implementation:** `vo/worker.js` loads the existing worker plus the independent VO analyzer. `vo/rubric.js` defines the scale and strict result validation; `vo/analysis.js` sends audio to Gemini; `vo/content.js` owns the isolated panel and playback listener; `vo/anchors/` contains the user-supplied reference files. The manifest and popup page diagnostics connect the separate VO module to supported sites. The API follows [Gemini audio understanding](https://ai.google.dev/gemini-api/docs/audio).
 
 **Validation:** Run `node tests/run-tests.mjs` and `node tests/vo-tests.mjs`. For browser flow tests, install Playwright outside the extension or make it available through `NODE_PATH`, then run `node tests/vo-browser.mjs`. Optionally set `VO_CHROMIUM` to a Chromium executable. Browser flow tests simulate Chrome messaging and AI replies; they do not establish live model accuracy or authenticated portal compatibility. A live check still requires a configured Gemini key and your task page.
 
